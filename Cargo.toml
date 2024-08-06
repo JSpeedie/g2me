@@ -1,0 +1,7 @@
+[package]
+name = "g2me-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glicko2 = { path = "../glicko2-rust/" } # Depend on the library as it exists in the local filesystem
