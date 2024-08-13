@@ -36,24 +36,10 @@ impl Default for Outcome {
 
 
 fn read_rating_period_file(fp: &str) -> Result<Vec<Outcome>, Box<dyn Error>> {
-    let file_contents: String;
+    let file_contents = fs::read_to_string(fp)?;
+    let parsed_outcomes = serde_json::from_str::<Vec<Outcome>>(&file_contents)?;
 
-    match fs::read_to_string(fp) {
-        Ok(s) => file_contents = s,
-        Err(e) => return Err(Box::new(e)),
-    };
-
-    println!("file contents: {file_contents}");
-
-    match serde_json::from_str::<Vec<Outcome>>(&file_contents) {
-        Ok(s) => {
-            for o in s.iter() {
-                println!("{o:#?}");
-            }
-            Ok(s)
-        },
-        Err(e) => Err(Box::new(e)),
-    }
+    Ok(parsed_outcomes)
 }
 
 
