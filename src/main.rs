@@ -7,6 +7,22 @@ use chrono::offset::LocalResult;
 use chrono::offset::LocalResult::{Single, Ambiguous, None};
 use std::fs;
 use std::error::Error;
+use std::collections::HashMap;
+
+
+struct G2PlayerUpdate {
+    before: G2Player,
+    after: G2Player,
+    outcomes: Vec<Outcome>,
+}
+
+
+#[derive(Copy,Clone)]
+struct G2Player {
+    mu: f64,
+    phi: f64,
+    vol: f64,
+}
 
 
 #[derive(Serialize,Deserialize,Debug)]
@@ -35,11 +51,25 @@ impl Default for Outcome {
 }
 
 
+/// Takes a path to a rating file `fp` and if it is a valid rating period file, returns a vector of
+/// all the outcomes specified in the file. If either reading the file to a string or parsing the
+/// contents as a vector of `Outcome`s fail, the function returns the error it encountered.
+///
+/// #### Parameters:
+/// * `fp` a file path to a rating period file which this function will attempt to read and parse.
+/// #### Return:
+/// * An `Result<Vec<Outcome>, Box<dyn Error>` containing the vector of `Outcome`s specified in
+///     the file if it was able to be read and parsed successfully, otherwise a `Box` containing
+///     either an `std::io::Error` if reading the file failed or a `serde_json::Error` if parsing
+///     the file failed.
 fn read_rating_period_file(fp: &str) -> Result<Vec<Outcome>, Box<dyn Error>> {
     let file_contents = fs::read_to_string(fp)?;
     let parsed_outcomes = serde_json::from_str::<Vec<Outcome>>(&file_contents)?;
 
     Ok(parsed_outcomes)
+}
+
+fn assign_outcomes_to_players(outcomes: &mut Vec<Outcome>, ) {
 }
 
 
@@ -61,15 +91,14 @@ fn convert_ymd_to_utc_ymd_hms(year: i32, month: u32, day: u32) -> Result<DateTim
 
 
 fn main() {
-    // let rating_period_ht: hashmap;
-    // let rating_period_ht: i32 = 0;
-
+    let rating_period_ht: HashMap<&str, G2PlayerUpdate> = HashMap::new();
 
     println!("");
 
     let rating_period_file_fp = "TSE14PRO.json";
 
-    match read_rating_period_file(rating_period_file_fp) {
+    let rating_period_outcomes = read_rating_period_file(rating_period_file_fp);
+    match rating_period_outcomes {
         Ok(outcomes) => {
             for o in outcomes {
                 println!("{o:#?}");
