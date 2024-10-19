@@ -10,6 +10,7 @@ use std::error::Error;
 use std::collections::HashMap;
 
 
+#[derive(Debug)]
 struct G2PlayerUpdate {
     before: G2Player,
     after: G2Player,
@@ -17,7 +18,7 @@ struct G2PlayerUpdate {
 }
 
 
-#[derive(Copy,Clone)]
+#[derive(Clone,Copy,Debug)]
 struct G2Player {
     mu: f64,
     phi: f64,
@@ -25,7 +26,7 @@ struct G2Player {
 }
 
 
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 struct Outcome {
     #[serde(default)]
     ignore: bool,
@@ -51,6 +52,20 @@ impl Default for Outcome {
 }
 
 
+impl Outcome {
+    /// Swaps all p1 data with all p2 data.
+    fn swap_player_order(&mut self) {
+        let temp_name = self.p1_name.clone();
+        self.p1_name = self.p2_name.clone();
+        self.p2_name = temp_name;
+
+        let temp_gc = self.p1_gc;
+        self.p1_gc = self.p2_gc;
+        self.p2_gc = temp_gc;
+    }
+}
+
+
 /// Takes a path to a rating file `fp` and if it is a valid rating period file, returns a vector of
 /// all the outcomes specified in the file. If either reading the file to a string or parsing the
 /// contents as a vector of `Outcome`s fail, the function returns the error it encountered.
@@ -62,6 +77,7 @@ impl Default for Outcome {
 ///     the file if it was able to be read and parsed successfully, otherwise a `Box` containing
 ///     either an `std::io::Error` if reading the file failed or a `serde_json::Error` if parsing
 ///     the file failed.
+#[deprecated(since="0.5.0", note="please use `new_method` instead")]
 fn read_rating_period_file(fp: &str) -> Result<Vec<Outcome>, Box<dyn Error>> {
     let file_contents = fs::read_to_string(fp)?;
     let parsed_outcomes = serde_json::from_str::<Vec<Outcome>>(&file_contents)?;
@@ -69,7 +85,26 @@ fn read_rating_period_file(fp: &str) -> Result<Vec<Outcome>, Box<dyn Error>> {
     Ok(parsed_outcomes)
 }
 
-fn assign_outcomes_to_players(outcomes: &mut Vec<Outcome>, ) {
+
+/// Takes a vector of outcomes and a HashMap of players names and `G2PlayerUpdate`s and goes
+/// through the outcome list, appending the outcome to a given player's outcome list if the
+/// outcome pertains to them.
+fn assign_outcomes_to_players(outcomes: &Vec<Outcome>,
+                              player_update_data: &mut HashMap<String, G2PlayerUpdate>) {
+
+    // For all outcomes, append the outcome to the outcome list of both p1 and p2
+    // such that p1 in the `Outcome` appended is always the player whose outcome list
+    // we are currently appending too
+    for o in outcomes.iter() {
+        let o1 = (*o).clone();
+        player_update_data.entry(o.p1_name.clone())
+                          .and_modify(|p| p.outcomes.push(o1));
+        // Switch the order of p1/p2 in `o` before pushing
+        let mut o2 = (*o).clone();
+        o2.swap_player_order();
+        player_update_data.entry(o.p2_name.clone())
+                          .and_modify(|p| p.outcomes.push(o2));
+    }
 }
 
 
@@ -91,7 +126,7 @@ fn convert_ymd_to_utc_ymd_hms(year: i32, month: u32, day: u32) -> Result<DateTim
 
 
 fn main() {
-    let rating_period_ht: HashMap<&str, G2PlayerUpdate> = HashMap::new();
+    let mut rating_period_ht: HashMap<String, G2PlayerUpdate> = HashMap::new();
 
     println!("");
 
@@ -100,8 +135,19 @@ fn main() {
     let rating_period_outcomes = read_rating_period_file(rating_period_file_fp);
     match rating_period_outcomes {
         Ok(outcomes) => {
-            for o in outcomes {
+            for o in outcomes.iter() {
                 println!("{o:#?}");
+            }
+
+            println!("");
+            println!("===================================================================");
+            println!("");
+
+            assign_outcomes_to_players(&outcomes, &mut rating_period_ht);
+            // TODO: isn't printing anything because the hash table is empty and .entry.and_modify
+            // is inserting no elements
+            for (k, v) in &rating_period_ht {
+                println!("player \"{k}\" has the outcome list {:?}", v.outcomes);
             }
         },
         Err(e) => {
@@ -111,4 +157,5 @@ fn main() {
             return ();
         }
     }
+
 }
